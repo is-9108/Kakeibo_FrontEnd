@@ -4,6 +4,10 @@
 # Azure Functions localsettings file
 local.settings.json
 
+# ASP.NET Core app settings (環境ごとの設定・API URL 等を含むため)
+appsettings.json
+appsettings.Development.json
+
 # User-specific files
 *.suo
 *.user
