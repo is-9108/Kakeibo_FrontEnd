@@ -1,0 +1,51 @@
+@page "/subscriptions/manage"
+@rendermode InteractiveServer
+@inject KakeiboApiService Api
+
+<PageTitle>サブスク管理</PageTitle>
+
+<h1>サブスク登録</h1>
+
+<EditForm Model="_request" OnValidSubmit="OnSubmitAsync">
+    <DataAnnotationsValidator />
+    <div class="form-group mb-2">
+        <label>名称</label>
+        <InputText @bind-Value="_request.Name" class="form-control" placeholder="例: Netflix" />
+    </div>
+    <div class="form-group mb-2">
+        <label>金額（円/月）</label>
+        <InputNumber @bind-Value="_request.Amount" class="form-control" />
+    </div>
+    @if (!string.IsNullOrEmpty(_message)) { <p class="@(_isError ? "text-danger" : "text-success")">@_message</p> }
+    <button type="submit" class="btn btn-primary" disabled="@_sending">登録</button>
+</EditForm>
+
+@code {
+    private CreateSubscriptionRequest _request = new();
+    private string? _message;
+    private bool _isError;
+    private bool _sending;
+
+    private async Task OnSubmitAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_request.Name)) { _message = "名称を入力してください。"; _isError = true; return; }
+        _sending = true;
+        _message = null;
+        try
+        {
+            await Api.CreateSubscriptionsAsync(_request);
+            _message = "登録しました。";
+            _isError = false;
+            _request = new CreateSubscriptionRequest();
+        }
+        catch (Exception ex)
+        {
+            _message = "登録に失敗しました: " + ex.Message;
+            _isError = true;
+        }
+        finally
+        {
+            _sending = false;
+        }
+    }
+}

@@ -1,0 +1,173 @@
+@page "/transactions/edit"
+@rendermode InteractiveServer
+@inject KakeiboApiService Api
+@inject IJSRuntime JSRuntime
+
+<PageTitle>取引修正</PageTitle>
+
+<h1>取引修正</h1>
+
+@if (_loading)
+{
+    <p>読み込み中...</p>
+}
+else if (_error is not null)
+{
+    <p class="text-danger">@_error</p>
+}
+else
+{
+    @if (_editingId.HasValue && _editRequest != null)
+    {
+        <div class="card mb-3">
+            <div class="card-body">
+                <h3>編集</h3>
+                <EditForm Model="_editRequest" OnValidSubmit="SaveEditAsync">
+                    <input type="hidden" value="@_editRequest.Id" />
+                    <div class="form-group mb-2">
+                        <label>カテゴリ</label>
+                        <InputSelect @bind-Value="_editRequest.CategoryId" class="form-control">
+                            @foreach (var c in _categories)
+                            {
+                                <option value="@c.Id">@c.Name</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="form-group mb-2">
+                        <label>日付</label>
+                        <InputDate @bind-Value="_editRequest.Date" class="form-control" />
+                    </div>
+                    <div class="form-group mb-2">
+                        <label>金額</label>
+                        <InputNumber @bind-Value="_editRequest.Amount" class="form-control" />
+                    </div>
+                    <div class="form-group mb-2">
+                        <label>メモ</label>
+                        <InputText @bind-Value="_editRequest.Memo" class="form-control" />
+                    </div>
+                    <button type="submit" class="btn btn-primary me-2" disabled="@_saving">保存</button>
+                    <button type="button" class="btn btn-secondary" @onclick="CancelEdit">キャンセル</button>
+                </EditForm>
+            </div>
+        </div>
+    }
+
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>日付</th>
+                    <th>カテゴリ</th>
+                    <th>メモ</th>
+                    <th>金額</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var t in _transactions.OrderByDescending(x => x.Date).ThenByDescending(x => x.Id))
+            {
+                <tr>
+                    <td>@t.Date.ToString("yyyy/MM/dd")</td>
+                    <td>@t.Category</td>
+                    <td>@t.Memo</td>
+                    <td>@t.Amount.ToString("N0")</td>
+                    <td>
+                        @if (_editingId == t.Id)
+                        { <span>編集中</span> }
+                        else
+                        {
+                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="@(() => StartEdit(t))">編集</button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="@(async () => await DeleteAsync(t.Id))">削除</button>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<TransactionResponse> _transactions = new();
+    private List<CategoryResponse> _categories = new();
+    private int? _editingId;
+    private UpdateTransactionRequest? _editRequest;
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            _transactions = (await Api.GetAllTransactionsAsync()).ToList();
+            _categories = (await Api.GetAllCategoriesAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            _error = "取得に失敗しました: " + ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void StartEdit(TransactionResponse t)
+    {
+        var cat = _categories.FirstOrDefault(c => c.Name == t.Category);
+        _editRequest = new UpdateTransactionRequest { Id = t.Id, CategoryId = cat?.Id ?? 0, Memo = t.Memo ?? "", Amount = t.Amount, Date = t.Date };
+        _editingId = t.Id;
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        _editRequest = null;
+    }
+
+    private async Task SaveEditAsync()
+    {
+        if (_editRequest == null) return;
+        _saving = true;
+        try
+        {
+            await Api.UpdateTransactionAsync(_editRequest);
+            _editingId = null;
+            _editRequest = null;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = "更新に失敗しました: " + ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        if (!await JSConfirm("この取引を削除しますか？")) return;
+        try
+        {
+            await Api.DeleteTransactionAsync(id);
+            await LoadAsync();
+            if (_editingId == id) CancelEdit();
+        }
+        catch (Exception ex)
+        {
+            _error = "削除に失敗しました: " + ex.Message;
+        }
+    }
+
+    private async Task<bool> JSConfirm(string message) => await JSRuntime.InvokeAsync<bool>("confirm", message);
+}

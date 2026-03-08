@@ -1,0 +1,135 @@
+@page "/monthly"
+@rendermode InteractiveServer
+@inject KakeiboApiService Api
+
+<PageTitle>月次処理</PageTitle>
+
+<h1>月次処理</h1>
+
+<section class="mb-4">
+    <h2>月次集計の作成</h2>
+    <p>現在の取引データから月次サマリーを作成します。</p>
+    <button class="btn btn-primary" disabled="@_creating" @onclick="CreateSummayAsync">CreateSummay を実行</button>
+    @if (!string.IsNullOrEmpty(_createMessage)) { <p class="@(_createError ? "text-danger" : "text-success")">@_createMessage</p> }
+</section>
+
+<hr />
+
+<section>
+    <h2>月別データ（GetAllSummay）</h2>
+    @if (_loading)
+    {
+        <p>読み込み中...</p>
+    }
+    else if (_error is not null)
+    {
+        <p class="text-danger">@_error</p>
+    }
+    else if (_summaries.Count == 0)
+    {
+        <p>データがありません。上で「CreateSummay を実行」してから再読み込みしてください。</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>月</th>
+                        <th>収支</th>
+                        <th>食費</th>
+                        <th>外食費</th>
+                        <th>光熱費</th>
+                        <th>通信費</th>
+                        <th>水道費</th>
+                        <th>交通費</th>
+                        <th>医療費</th>
+                        <th>税金</th>
+                        <th>家賃</th>
+                        <th>サブスク</th>
+                        <th>その他</th>
+                        <th>給料</th>
+                        <th>臨時収入</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in _summaries.OrderByDescending(x => x.Month))
+                    {
+                        var shuusi = s.Kyuryo + s.RinjiShunyu - (s.Shokuhi + s.Gaishokuhi + s.Kounetsuhi + s.Tsuusinhi + s.Suidouhi + s.Koutsuhi + s.Iryouhi + s.Zeikin + s.Yachin + s.Subscription + s.Sonota);
+                        <tr>
+                            <td>@s.Month</td>
+                            <td>@shuusi.ToString("N0")</td>
+                            <td>@s.Shokuhi.ToString("N0")</td>
+                            <td>@s.Gaishokuhi.ToString("N0")</td>
+                            <td>@s.Kounetsuhi.ToString("N0")</td>
+                            <td>@s.Tsuusinhi.ToString("N0")</td>
+                            <td>@s.Suidouhi.ToString("N0")</td>
+                            <td>@s.Koutsuhi.ToString("N0")</td>
+                            <td>@s.Iryouhi.ToString("N0")</td>
+                            <td>@s.Zeikin.ToString("N0")</td>
+                            <td>@s.Yachin.ToString("N0")</td>
+                            <td>@s.Subscription.ToString("N0")</td>
+                            <td>@s.Sonota.ToString("N0")</td>
+                            <td>@s.Kyuryo.ToString("N0")</td>
+                            <td>@s.RinjiShunyu.ToString("N0")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    private bool _loading = true;
+    private bool _creating;
+    private string? _error;
+    private string? _createMessage;
+    private bool _createError;
+    private List<MonthlySummaryResponse> _summaries = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            _summaries = (await Api.GetAllSummayAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            _error = "取得に失敗しました: " + ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task CreateSummayAsync()
+    {
+        _creating = true;
+        _createMessage = null;
+        try
+        {
+            await Api.CreateSummayAsync();
+            _createMessage = "月次集計を作成しました。";
+            _createError = false;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _createMessage = "実行に失敗しました: " + ex.Message;
+            _createError = true;
+        }
+        finally
+        {
+            _creating = false;
+        }
+    }
+}

@@ -1,0 +1,122 @@
+@page "/"
+@rendermode InteractiveServer
+@inject KakeiboApiService Api
+
+<PageTitle>ホーム</PageTitle>
+
+<h1>家計簿</h1>
+
+@if (_loading)
+{
+    <p>読み込み中...</p>
+}
+else if (_error is not null)
+{
+    <p class="text-danger">@_error</p>
+}
+else
+{
+    <section class="balance-section">
+        <h2>現在の収支</h2>
+        <p><strong>収入:</strong> @_totalIncome.ToString("N0") 円</p>
+        <p><strong>支出:</strong> @_totalExpense.ToString("N0") 円</p>
+        <p><strong>収支:</strong> <span class="@(_balance >= 0 ? "text-success" : "text-danger")">@_balance.ToString("N0") 円</span></p>
+    </section>
+
+    <section class="chart-section">
+        <h2>支出の内訳（カテゴリ別）</h2>
+        @if (_expenseByCategory.Count == 0)
+        {
+            <p>支出データがありません。</p>
+        }
+        else
+        {
+            <div class="chart-container">
+                <div class="pie-chart" style="background: conic-gradient(@_pieGradient);"></div>
+                <div class="chart-legend">
+                    @foreach (var item in _expenseByCategory)
+                    {
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: @item.Color;"></span>
+                            <span>@item.Category: @item.Amount.ToString("N0") 円</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<TransactionResponse> _transactions = new();
+    private int _totalIncome;
+    private int _totalExpense;
+    private int _balance;
+    private List<(string Category, int Amount, string Color)> _expenseByCategory = new();
+    private string _pieGradient = "";
+
+    private static readonly string[] IncomeCategories = { "給料", "臨時収入" };
+    private static readonly string[] ChartColors =
+    {
+        "#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f",
+        "#edc948", "#b07aa1", "#ff9da7", "#9c755f", "#bab0ac"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            _transactions = (await Api.GetAllTransactionsAsync()).ToList();
+            _totalIncome = _transactions
+                .Where(t => IncomeCategories.Contains(t.Category))
+                .Sum(t => t.Amount);
+            _totalExpense = _transactions
+                .Where(t => !IncomeCategories.Contains(t.Category))
+                .Sum(t => t.Amount);
+            _balance = _totalIncome - _totalExpense;
+
+            var grouped = _transactions
+                .Where(t => !IncomeCategories.Contains(t.Category))
+                .GroupBy(t => t.Category)
+                .Select(g => (Category: g.Key, Amount: g.Sum(x => x.Amount)))
+                .OrderByDescending(x => x.Amount)
+                .ToList();
+            var totalExpenseForPie = grouped.Sum(x => x.Amount);
+            _expenseByCategory = new List<(string, int, string)>();
+            var prevPercent = 0.0;
+            var colorIndex = 0;
+            var parts = new List<string>();
+            foreach (var item in grouped)
+            {
+                var pct = totalExpenseForPie > 0 ? (double)item.Amount / totalExpenseForPie * 100 : 0;
+                var color = ChartColors[colorIndex % ChartColors.Length];
+                colorIndex++;
+                _expenseByCategory.Add((item.Category, item.Amount, color));
+                parts.Add($"{color} {prevPercent:F1}% {prevPercent + pct:F1}%");
+                prevPercent += pct;
+            }
+            _pieGradient = string.Join(", ", parts);
+        }
+        catch (HttpRequestException ex)
+        {
+            _error = "API に接続できません。Kakeibo（Azure Functions）が http://localhost:7071 で起動しているか確認してください。（" + ex.Message + "）";
+        }
+        catch (Exception ex)
+        {
+            _error = "データの取得に失敗しました: " + ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

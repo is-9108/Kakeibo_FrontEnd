@@ -1,0 +1,117 @@
+@page "/transactions/register"
+@rendermode InteractiveServer
+@inject KakeiboApiService Api
+
+<PageTitle>取引登録</PageTitle>
+
+<h1>取引登録</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <EditForm Model="_request" OnValidSubmit="OnSubmitAsync">
+            <DataAnnotationsValidator />
+            <div class="form-group mb-2">
+                <label>カテゴリ</label>
+                <InputSelect @bind-Value="_request.CategoryId" class="form-control">
+                    <option value="0">選択してください</option>
+                    @foreach (var c in _categories)
+                    {
+                        <option value="@c.Id">@c.Name</option>
+                    }
+                </InputSelect>
+            </div>
+            <div class="form-group mb-2">
+                <label>日付</label>
+                <InputDate @bind-Value="_request.Date" class="form-control" />
+            </div>
+            <div class="form-group mb-2">
+                <label>金額</label>
+                <InputNumber @bind-Value="_request.Amount" class="form-control" />
+            </div>
+            <div class="form-group mb-2">
+                <label>メモ</label>
+                <InputText @bind-Value="_request.Memo" class="form-control" />
+            </div>
+            @if (!string.IsNullOrEmpty(_message)) { <p class="@(_isError ? "text-danger" : "text-success")">@_message</p> }
+            <button type="submit" class="btn btn-primary" disabled="@_sending">登録</button>
+        </EditForm>
+    </div>
+</div>
+
+<hr />
+
+<h2>サブスク一括登録</h2>
+<p>登録済みの取引からサブスクを一括で登録します。</p>
+<button class="btn btn-secondary" disabled="@_sendingSubs" @onclick="RegisterSubscriptionsAsync">サブスクを一括登録</button>
+@if (!string.IsNullOrEmpty(_subsMessage)) { <p class="@(_subsError ? "text-danger" : "text-success")">@_subsMessage</p> }
+
+@code {
+    private CreateTransactionRequest _request = new();
+    private List<CategoryResponse> _categories = new();
+    private string? _message;
+    private bool _isError;
+    private bool _sending;
+    private string? _subsMessage;
+    private bool _subsError;
+    private bool _sendingSubs;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCategoriesAsync();
+    }
+
+    private async Task LoadCategoriesAsync()
+    {
+        try
+        {
+            _categories = (await Api.GetAllCategoriesAsync()).ToList();
+            if (_categories.Count > 0 && _request.CategoryId == 0)
+                _request.CategoryId = _categories[0].Id;
+        }
+        catch { /* ignore */ }
+    }
+
+    private async Task OnSubmitAsync()
+    {
+        if (_request.CategoryId == 0) { _message = "カテゴリを選択してください。"; _isError = true; return; }
+        _sending = true;
+        _message = null;
+        try
+        {
+            await Api.AddTransactionAsync(_request);
+            _message = "登録しました。";
+            _isError = false;
+            _request.Memo = ""; _request.Amount = 0; _request.Date = DateTime.Today;
+        }
+        catch (Exception ex)
+        {
+            _message = "登録に失敗しました: " + ex.Message;
+            _isError = true;
+        }
+        finally
+        {
+            _sending = false;
+        }
+    }
+
+    private async Task RegisterSubscriptionsAsync()
+    {
+        _sendingSubs = true;
+        _subsMessage = null;
+        try
+        {
+            await Api.RegisterSubscriptionsAsync();
+            _subsMessage = "サブスクを一括登録しました。";
+            _subsError = false;
+        }
+        catch (Exception ex)
+        {
+            _subsMessage = "一括登録に失敗しました: " + ex.Message;
+            _subsError = true;
+        }
+        finally
+        {
+            _sendingSubs = false;
+        }
+    }
+}

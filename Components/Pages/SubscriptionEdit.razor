@@ -1,0 +1,150 @@
+@page "/subscriptions/edit"
+@rendermode InteractiveServer
+@inject KakeiboApiService Api
+@inject IJSRuntime JSRuntime
+
+<PageTitle>サブスク修正</PageTitle>
+
+<h1>サブスク修正</h1>
+
+@if (_loading)
+{
+    <p>読み込み中...</p>
+}
+else if (_error is not null)
+{
+    <p class="text-danger">@_error</p>
+}
+else
+{
+    @if (_editingId.HasValue && _editRequest != null)
+    {
+        <div class="card mb-3">
+            <div class="card-body">
+                <h3>編集</h3>
+                <EditForm Model="_editRequest" OnValidSubmit="SaveEditAsync">
+                    <div class="form-group mb-2">
+                        <label>名称</label>
+                        <InputText @bind-Value="_editRequest.Name" class="form-control" />
+                    </div>
+                    <div class="form-group mb-2">
+                        <label>金額</label>
+                        <InputNumber @bind-Value="_editRequest.Amount" class="form-control" />
+                    </div>
+                    <button type="submit" class="btn btn-primary me-2" disabled="@_saving">保存</button>
+                    <button type="button" class="btn btn-secondary" @onclick="CancelEdit">キャンセル</button>
+                </EditForm>
+            </div>
+        </div>
+    }
+
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>名称</th>
+                    <th>金額</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var s in _subscriptions)
+            {
+                <tr>
+                    <td>@s.Name</td>
+                    <td>@s.Amount.ToString("N0") 円</td>
+                    <td>
+                        @if (_editingId == s.Id)
+                        { <span>編集中</span> }
+                        else
+                        {
+                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="@(() => StartEdit(s))">編集</button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="@(async () => await DeleteAsync(s.Id))">削除</button>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private bool _loading = true;
+    private string? _error;
+    private List<SubscriptionResponse> _subscriptions = new();
+    private int? _editingId;
+    private UpdateSubscriptionRequest? _editRequest;
+    private bool _saving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            _subscriptions = (await Api.GetAllSubscriptionsAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            _error = "取得に失敗しました: " + ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void StartEdit(SubscriptionResponse s)
+    {
+        _editRequest = new UpdateSubscriptionRequest { Id = s.Id, Name = s.Name ?? "", Amount = s.Amount };
+        _editingId = s.Id;
+    }
+
+    private void CancelEdit()
+    {
+        _editingId = null;
+        _editRequest = null;
+    }
+
+    private async Task SaveEditAsync()
+    {
+        if (_editRequest == null) return;
+        _saving = true;
+        try
+        {
+            await Api.UpdateSubscriptionsAsync(_editRequest);
+            _editingId = null;
+            _editRequest = null;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = "更新に失敗しました: " + ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task DeleteAsync(int id)
+    {
+        if (!await JSRuntime.InvokeAsync<bool>("confirm", "このサブスクを削除しますか？")) return;
+        try
+        {
+            await Api.DeleteSubscriptionsAsync(id);
+            await LoadAsync();
+            if (_editingId == id) CancelEdit();
+        }
+        catch (Exception ex)
+        {
+            _error = "削除に失敗しました: " + ex.Message;
+        }
+    }
+}
