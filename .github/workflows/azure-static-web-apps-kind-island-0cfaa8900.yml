@@ -23,28 +23,14 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
-      - name: Set appsettings from environment (GitHub Secrets)
+      - name: Inject appsettings
         env:
-          KAKEIBO_API_BASE_URL: ${{ secrets.KAKEIBO_API_BASE_URL }}
-          KAKEIBO_API_FUNCTION_KEY: ${{ secrets.KAKEIBO_API_FUNCTION_KEY }}
+          BASE_URL: ${{ secrets.KAKEIBO_API_BASE_URL }}
+          FUNC_KEY: ${{ secrets.KAKEIBO_API_FUNCTION_KEY }}
         run: |
-          python3 -c "
-          import json, os, urllib.parse
-          path = 'wwwroot/appsettings.json'
-          base_url = os.environ.get('KAKEIBO_API_BASE_URL', '')
-          function_key = os.environ.get('KAKEIBO_API_FUNCTION_KEY', '')
-          if function_key:
-              function_key = urllib.parse.unquote(function_key)
-          data = {
-            'KakeiboApi': {
-              'BaseUrl': base_url,
-              'FunctionKey': function_key
-            }
-          }
-          os.makedirs(os.path.dirname(path), exist_ok=True)
-          with open(path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-          "
+          jq -n --arg b "$BASE_URL" --arg k "$FUNC_KEY" \
+            '{KakeiboApi:{BaseUrl:$b,FunctionKey:$k}}' \
+            > wwwroot/appsettings.json
       - name: Publish Blazor WASM
         run: dotnet publish -c Release
       - name: Build And Deploy
