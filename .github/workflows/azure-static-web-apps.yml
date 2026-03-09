@@ -14,16 +14,10 @@ jobs:
         dotnet-version: 8.0.x
     - name: Publish
       run: dotnet publish -c Release
-    - name: Check deployment token
-      run: |
-        if [ -z "${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}" ]; then
-          echo "::error::AZURE_STATIC_WEB_APPS_API_TOKEN が設定されていません。GitHub の Settings → Secrets and variables → Actions で追加してください。値は Azure ポータルの Static Web Apps → 管理 → デプロイ トークン で取得できます。"
-          exit 1
-        fi
     - name: Deploy to Azure Static Web Apps
       uses: Azure/static-web-apps-deploy@v1
       with:
-        azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+        azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_RED_MEADOW_04BA7BD00 }}
         action: upload
         app_location: bin/Release/net8.0/publish/wwwroot
         skip_app_build: true
