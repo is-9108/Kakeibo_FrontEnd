@@ -18,7 +18,7 @@ public sealed class FunctionKeyHandler : DelegatingHandler
         {
             var uri = request.RequestUri.ToString();
             var separator = uri.Contains('?') ? "&" : "?";
-            request.RequestUri = new Uri(uri + separator + "code=" + Uri.EscapeDataString(_functionKey));
+            request.RequestUri = new Uri(uri + separator + "code=" + _functionKey);
         }
         return await base.SendAsync(request, cancellationToken);
     }
