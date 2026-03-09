@@ -1,6 +1,6 @@
 {
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/css/*", "/js/*", "/bootstrap/*", "/_framework/*", "/favicon.png", "/app.css"]
+    "exclude": ["/css/*", "/js/*", "/bootstrap/*", "/_framework/*", "/favicon.png", "/app.css", "/Kakeibo_Front.styles.css"]
   }
 }
