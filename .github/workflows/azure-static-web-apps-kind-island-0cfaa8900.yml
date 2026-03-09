@@ -29,12 +29,16 @@ jobs:
           KAKEIBO_API_FUNCTION_KEY: ${{ secrets.KAKEIBO_API_FUNCTION_KEY }}
         run: |
           python3 -c "
-          import json, os
+          import json, os, urllib.parse
           path = 'wwwroot/appsettings.json'
+          base_url = os.environ.get('KAKEIBO_API_BASE_URL', '')
+          function_key = os.environ.get('KAKEIBO_API_FUNCTION_KEY', '')
+          if function_key:
+              function_key = urllib.parse.unquote(function_key)
           data = {
             'KakeiboApi': {
-              'BaseUrl': os.environ.get('KAKEIBO_API_BASE_URL', ''),
-              'FunctionKey': os.environ.get('KAKEIBO_API_FUNCTION_KEY', '')
+              'BaseUrl': base_url,
+              'FunctionKey': function_key
             }
           }
           os.makedirs(os.path.dirname(path), exist_ok=True)
