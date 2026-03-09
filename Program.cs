@@ -1,34 +1,19 @@
+using Microsoft.AspNetCore.Components.Web;
+using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Kakeibo_Front.Components;
 using Kakeibo_Front.Services;
 
-var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+var builder = WebAssemblyHostBuilder.CreateDefault(args);
+builder.RootComponents.Add<App>("#app");
+builder.RootComponents.Add<HeadOutlet>("head::after");
 
 var baseUrl = builder.Configuration["KakeiboApi:BaseUrl"] ?? "http://localhost:7071/api/";
+var functionKey = builder.Configuration["KakeiboApi:FunctionKey"];
+
 builder.Services.AddHttpClient<KakeiboApiService>(client =>
 {
     client.BaseAddress = new Uri(baseUrl);
-});
+})
+.AddHttpMessageHandler(() => new FunctionKeyHandler(functionKey));
 
-var app = builder.Build();
-
-// Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    app.UseHsts();
-}
-
-app.UseHttpsRedirection();
-
-app.UseStaticFiles();
-app.UseAntiforgery();
-
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
-
-app.Run();
+await builder.Build().RunAsync();

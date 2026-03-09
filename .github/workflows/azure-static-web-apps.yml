@@ -1,0 +1,23 @@
+name: Blazor WASM を Azure Static Web Apps にデプロイする
+on:
+  push:
+    branches:
+    - main
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+    - name: Publish
+      run: dotnet publish -c Release
+    - name: Deploy to Azure Static Web Apps
+      uses: Azure/static-web-apps-deploy@v1
+      with:
+        azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+        action: upload
+        app_location: bin/Release/net8.0/publish/wwwroot
+        skip_app_build: true
