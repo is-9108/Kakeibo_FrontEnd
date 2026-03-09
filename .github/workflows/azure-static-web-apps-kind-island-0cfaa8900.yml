@@ -23,6 +23,17 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+      - name: Set appsettings from environment (GitHub Secrets)
+        run: |
+          # ${{ }} は Actions がビルド前に展開。heredoc はクォートでシェル展開を防ぐ
+          cat > wwwroot/appsettings.json << 'APPJSON'
+          {
+            "KakeiboApi": {
+              "BaseUrl": "${{ secrets.KAKEIBO_API_BASE_URL }}",
+              "FunctionKey": "${{ secrets.KAKEIBO_API_FUNCTION_KEY }}"
+            }
+          }
+          APPJSON
       - name: Publish Blazor WASM
         run: dotnet publish -c Release
       - name: Build And Deploy

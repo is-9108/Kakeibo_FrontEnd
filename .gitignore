@@ -7,6 +7,7 @@ local.settings.json
 # ASP.NET Core app settings (環境ごとの設定・API URL 等を含むため)
 appsettings.json
 appsettings.Development.json
+appsettings.Development.json.example
 
 # User-specific files
 *.suo
