@@ -7,7 +7,9 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-var baseUrl = builder.Configuration["KakeiboApi:BaseUrl"] ?? "http://localhost:7071/api/";
+var baseUrl = builder.Configuration["KakeiboApi:BaseUrl"];
+if (string.IsNullOrWhiteSpace(baseUrl))
+    baseUrl = "http://localhost:7071/api/";
 var functionKey = builder.Configuration["KakeiboApi:FunctionKey"];
 
 builder.Services.AddHttpClient<KakeiboApiService>(client =>
